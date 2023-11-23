@@ -4,72 +4,96 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using ChatServer.Messages;
+using WebSocketSharp.Server;
 
-var tcpListener = new TcpListener(IPAddress.Any, 5380);
-var subscribers = new ConcurrentDictionary<TcpClient, string[]>();
+namespace ChatServer;
 
-Thread t = new Thread(() =>
+internal class Program
 {
-    for(;;)
+    public static ConcurrentDictionary<TcpClient, List<string>> subscribersTcp = new();
+    public static ConcurrentDictionary<WSS, string[]> subscribersWs = new();
+
+    private static void Main(string[] args)
     {
-        // foreach (var x in subscribers.Where(v => v.Value.Contains("xxx")).Select(k => k.Key))
-        // {
-        //     Console.WriteLine(x);        
-        // }
-        
-        // Console.WriteLine(subscribers.Count);
-        // foreach (var s in subscribers.Values)
-        // {
-        //     foreach (var v in s)
-        //     {
-        //         Console.WriteLine(v);
-        //     }
-        // }
-        
-        Thread.Sleep(1000);
-    }
-
-    // dictionary.Keys.Any(key => key.Contains("a"));
-});
-
-t.Start();
-
-try
-{
-    tcpListener.Start(); // запускаем сервер
-    Console.WriteLine("Сервер запущен. Ожидание подключений... ");
-
-    while (true)
-    {
-        var tcpClient = await tcpListener.AcceptTcpClientAsync();
-        Task.Run(async () => await ProcessClientAsync(tcpClient));
-        // new Thread(async () => await ProcessClientAsync(tcpClient)).Start();
-    }
-}
-finally
-{
-    tcpListener.Stop();
-}
-
-async Task ProcessClientAsync(TcpClient client)
-{
-    var stream = client.GetStream();
-    var buffer = new byte[10000];
-    int bytesRead;
-
-    while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
-    {
-        var json = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-
-        switch (JsonSerializer.Deserialize<MessageType>(json).Type)
+        var t = new Thread(() =>
         {
-            case "subscribe":
-                var message = JsonSerializer.Deserialize<MessageSubscribe>(json);
-                subscribers[client] = message.Events;
-                break;
+            for (;;)
+                // Console.WriteLine(subscribersTcp.Count > 0 ? subscribersTcp.First().Value.Count : "NONE");
+                Thread.Sleep(1000);
+        });
+
+        t.Start();
+
+        var wss = new WebSocketServer("ws://0.0.0.0:5300");
+        wss.AddWebSocketService<WSS>("/");
+        wss.Start();
+
+        var tcpListener = new TcpListener(IPAddress.Any, 5380);
+
+        try
+        {
+            tcpListener.Start();
+            Console.WriteLine("Сервер запущен. Ожидание подключений...");
+
+            while (true)
+            {
+                var tcpClient = tcpListener.AcceptTcpClient();
+                Task.Run(async () => await ProcessClientAsync(tcpClient));
+                // new Thread(async () => await ProcessClientAsync(tcpClient)).Start();
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
+        finally
+        {
+            tcpListener.Stop();
         }
     }
 
-    subscribers.TryRemove(client, out _);
-    client.Close();
+    private static Task ProcessClientAsync(TcpClient client)
+    {
+        var stream = client.GetStream();
+        var buffer = new byte[10000];
+        int bytesRead;
+
+        while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            var json = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+            var messageType = JsonSerializer.Deserialize<MessageType>(json).Type;
+
+            switch (messageType)
+            {
+                case "subscribe":
+                    var subscribe = JsonSerializer.Deserialize<Subscribe>(json);
+
+                    if (!subscribersTcp.ContainsKey(client)) subscribersTcp[client] = new List<string>();
+
+                    foreach (var v in subscribe.Events)
+                        if (!subscribersTcp[client].Contains(v))
+                            subscribersTcp[client].Add(v);
+                    break;
+
+                case "unsubscribe":
+                    var unsubscribe = JsonSerializer.Deserialize<Subscribe>(json);
+                    foreach (var v in unsubscribe.Events) subscribersTcp[client].Remove(v);
+                    break;
+
+                default:
+                    // var chatMessage = JsonSerializer.Deserialize<ChatMessage>(json);
+                    foreach (var c in subscribersTcp.Where(v => v.Value.Contains(messageType)).Select(k => k.Key))
+                    {
+                        var writer = new StreamWriter(c.GetStream());
+                        writer.WriteLine(json);
+                        writer.Flush();
+                    }
+                    break;
+            }
+        }
+
+        subscribersTcp.Remove(client, out _);
+        client.Close();
+        return Task.CompletedTask;
+    }
 }
