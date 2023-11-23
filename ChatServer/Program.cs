@@ -11,18 +11,19 @@ namespace ChatServer;
 internal class Program
 {
     public static ConcurrentDictionary<TcpClient, List<string>> subscribersTcp = new();
-    public static ConcurrentDictionary<WSS, string[]> subscribersWs = new();
+    public static ConcurrentDictionary<WSS, List<string>> subscribersWs = new();
 
     private static void Main(string[] args)
     {
         var t = new Thread(() =>
         {
-            for (;;)
-                // Console.WriteLine(subscribersTcp.Count > 0 ? subscribersTcp.First().Value.Count : "NONE");
+            for (;;) {
+                Console.WriteLine(subscribersTcp.Count > 0 ? subscribersTcp.First().Value.Count : "NONE");
                 Thread.Sleep(1000);
+            }
         });
 
-        t.Start();
+        // t.Start();
 
         var wss = new WebSocketServer("ws://0.0.0.0:5300");
         wss.AddWebSocketService<WSS>("/");
@@ -82,11 +83,19 @@ internal class Program
 
                 default:
                     // var chatMessage = JsonSerializer.Deserialize<ChatMessage>(json);
+                    
+                    // Send message to TCP subscribers
                     foreach (var c in subscribersTcp.Where(v => v.Value.Contains(messageType)).Select(k => k.Key))
                     {
                         var writer = new StreamWriter(c.GetStream());
                         writer.WriteLine(json);
                         writer.Flush();
+                    }
+                    
+                    // Send message to Websocket subscribers
+                    foreach (var c in subscribersWs.Where(v => v.Value.Contains(messageType)).Select(k => k.Key))
+                    {
+                        c.Snd(json);
                     }
                     break;
             }

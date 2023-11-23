@@ -1,4 +1,6 @@
-﻿using WebSocketSharp;
+﻿using System.Text.Json;
+using ChatServer.Messages;
+using WebSocketSharp;
 using WebSocketSharp.Server;
 using ErrorEventArgs = WebSocketSharp.ErrorEventArgs;
 
@@ -13,12 +15,25 @@ public class WSS : WebSocketBehavior
 
     protected override void OnMessage(MessageEventArgs e)
     {
-        // Program.wsClients.Add(this);
-        var msg = e.Data == "BALUS"
-            ? "Are you kidding?"
-            : "I'm not available now.";
+        var messageType = JsonSerializer.Deserialize<MessageType>(e.Data).Type;
 
-        Send(msg);
+        switch (messageType)
+        {
+            case "subscribe":
+                var subscribe = JsonSerializer.Deserialize<Subscribe>(e.Data);
+
+                if (!Program.subscribersWs.ContainsKey(this)) Program.subscribersWs[this] = new List<string>();
+
+                foreach (var v in subscribe.Events)
+                    if (!Program.subscribersWs[this].Contains(v))
+                        Program.subscribersWs[this].Add(v);
+                break;
+
+            case "unsubscribe":
+                var unsubscribe = JsonSerializer.Deserialize<Subscribe>(e.Data);
+                foreach (var v in unsubscribe.Events) Program.subscribersWs[this].Remove(v);
+                break;
+        }
     }
 
     protected override void OnOpen()
