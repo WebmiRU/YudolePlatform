@@ -8,12 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="WebSocketSharp" Version="1.0.3-rc11"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Folder Include="public\themes\strarcraft\"/>
-        <Folder Include="public\themes\system\"/>
+        <PackageReference Include="websocketsharp.core" Version="1.0.0"/>
     </ItemGroup>
 
 </Project>

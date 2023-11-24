@@ -17,7 +17,8 @@ internal class Program
     {
         var t = new Thread(() =>
         {
-            for (;;) {
+            for (;;)
+            {
                 Console.WriteLine(subscribersTcp.Count > 0 ? subscribersTcp.First().Value.Count : "NONE");
                 Thread.Sleep(1000);
             }
@@ -61,7 +62,7 @@ internal class Program
 
         while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
         {
-            var json = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+            var json = Encoding.UTF8.GetString(buffer, 0, bytesRead);
             var messageType = JsonSerializer.Deserialize<MessageType>(json).Type;
 
             switch (messageType)
@@ -83,7 +84,7 @@ internal class Program
 
                 default:
                     // var chatMessage = JsonSerializer.Deserialize<ChatMessage>(json);
-                    
+
                     // Send message to TCP subscribers
                     foreach (var c in subscribersTcp.Where(v => v.Value.Contains(messageType)).Select(k => k.Key))
                     {
@@ -91,12 +92,10 @@ internal class Program
                         writer.WriteLine(json);
                         writer.Flush();
                     }
-                    
+
                     // Send message to Websocket subscribers
                     foreach (var c in subscribersWs.Where(v => v.Value.Contains(messageType)).Select(k => k.Key))
-                    {
                         c.Snd(json);
-                    }
                     break;
             }
         }
