@@ -64,7 +64,7 @@ internal class Program
         {
             var json = Encoding.UTF8.GetString(buffer, 0, bytesRead);
             Console.WriteLine("MESSAGE: " + json);
-            var messageType = JsonSerializer.Deserialize<MessageType>(json).Type;
+            var messageType = JsonSerializer.Deserialize<MessageType>(json)?.Type;
 
             switch (messageType)
             {
