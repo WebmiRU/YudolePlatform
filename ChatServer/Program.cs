@@ -63,6 +63,7 @@ internal class Program
         while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
         {
             var json = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+            Console.WriteLine("MESSAGE: "+json);
             var messageType = JsonSerializer.Deserialize<MessageType>(json).Type;
 
             switch (messageType)

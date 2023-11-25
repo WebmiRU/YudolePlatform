@@ -27,6 +27,9 @@ public class WSS : WebSocketBehavior
                 foreach (var v in subscribe.Events)
                     if (!Program.subscribersWs[this].Contains(v))
                         Program.subscribersWs[this].Add(v);
+
+                subscribe.Type += "/success";
+                Send(JsonSerializer.Serialize(subscribe));
                 break;
 
             case "unsubscribe":

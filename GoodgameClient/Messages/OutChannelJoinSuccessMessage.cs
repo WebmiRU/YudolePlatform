@@ -2,7 +2,6 @@
 
 namespace GoodgameClient.Messages;
 
-
 public class OutChannelJoinSuccessMessage
 {
     [JsonPropertyName("id")] public string? Id { get; set; }
