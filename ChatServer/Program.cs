@@ -63,7 +63,7 @@ internal class Program
         while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
         {
             var json = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-            Console.WriteLine("MESSAGE: "+json);
+            Console.WriteLine("MESSAGE: " + json);
             var messageType = JsonSerializer.Deserialize<MessageType>(json).Type;
 
             switch (messageType)
@@ -84,14 +84,12 @@ internal class Program
                     break;
 
                 default:
-                    // var chatMessage = JsonSerializer.Deserialize<ChatMessage>(json);
-
                     // Send message to TCP subscribers
                     foreach (var c in subscribersTcp.Where(v => v.Value.Contains(messageType)).Select(k => k.Key))
                     {
-                        var writer = new StreamWriter(c.GetStream());
-                        writer.WriteLine(json);
-                        writer.Flush();
+                        var cStream = c.GetStream();
+                        cStream.Write(Encoding.UTF8.GetBytes(json));
+                        cStream.Flush();
                     }
 
                     // Send message to Websocket subscribers
