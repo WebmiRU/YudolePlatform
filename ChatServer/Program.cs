@@ -41,7 +41,6 @@ internal class Program
             {
                 var tcpClient = tcpListener.AcceptTcpClient();
                 Task.Run(async () => await ProcessClientAsync(tcpClient));
-                // new Thread(async () => await ProcessClientAsync(tcpClient)).Start();
             }
         }
         catch (Exception e)
@@ -87,9 +86,16 @@ internal class Program
                     // Send message to TCP subscribers
                     foreach (var c in subscribersTcp.Where(v => v.Value.Contains(messageType)).Select(k => k.Key))
                     {
-                        var cStream = c.GetStream();
-                        cStream.Write(Encoding.UTF8.GetBytes(json));
-                        cStream.Flush();
+                        try
+                        {
+                            var cStream = c.GetStream();
+                            cStream.Write(Encoding.UTF8.GetBytes(json));
+                            cStream.Flush();
+                        }
+                        catch
+                        {
+                            // ignored
+                        }
                     }
 
                     // Send message to Websocket subscribers
